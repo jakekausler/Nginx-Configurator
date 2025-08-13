@@ -36,6 +36,46 @@ SITES_AVAILABLE = Path('/etc/nginx/sites-available')
 SITES_ENABLED = Path('/etc/nginx/sites-enabled')
 
 
+def _clean_existing_sites():
+    """
+    Clean existing nginx sites before regeneration.
+    Removes all sites-available files except 'default' and all sites-enabled symlinks.
+    """
+    import os
+    
+    # Remove all sites-available files except 'default'
+    if SITES_AVAILABLE.exists():
+        removed_count = 0
+        for site_file in SITES_AVAILABLE.iterdir():
+            if site_file.is_file() and site_file.name.lower() != 'default':
+                try:
+                    site_file.unlink()
+                    removed_count += 1
+                except OSError as e:
+                    logger.warning(f"Failed to remove {site_file}: {e}")
+        
+        if removed_count > 0:
+            click.echo(f"Removed {removed_count} existing site configuration(s)")
+    
+    # Remove all sites-enabled symlinks
+    if SITES_ENABLED.exists():
+        removed_symlinks = 0
+        for symlink in SITES_ENABLED.iterdir():
+            if symlink.is_symlink() or symlink.is_file():
+                try:
+                    symlink.unlink()
+                    removed_symlinks += 1
+                except OSError as e:
+                    logger.warning(f"Failed to remove symlink {symlink}: {e}")
+        
+        if removed_symlinks > 0:
+            click.echo(f"Removed {removed_symlinks} existing site symlink(s)")
+    else:
+        # Create sites-enabled directory if it doesn't exist
+        SITES_ENABLED.mkdir(exist_ok=True)
+        logger.info("Created sites-enabled directory")
+
+
 @click.group()
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--config', '-c', type=click.Path(exists=True), help='Path to configuration file')
@@ -110,6 +150,10 @@ def generate(ctx, dry_run: bool, no_backup: bool, force: bool):
             click.echo("No enabled sites found in configuration")
             return
         
+        # Clean existing sites before regeneration (unless dry-run)
+        if not dry_run:
+            _clean_existing_sites()
+        
         # Generate configurations
         click.echo(f"Generating configurations for {len(enabled_sites)} sites...")
         
@@ -132,9 +176,8 @@ def generate(ctx, dry_run: bool, no_backup: bool, force: bool):
                     
                     # Enable site (create symlink)
                     enabled_link = SITES_ENABLED / domain
-                    if not enabled_link.exists():
-                        enabled_link.symlink_to(f"../sites-available/{domain}")
-                        click.echo(f"Enabled: {domain}")
+                    enabled_link.symlink_to(f"../sites-available/{domain}")
+                    click.echo(f"Enabled: {domain}")
                         
             except Exception as e:
                 click.echo(f"Error generating {domain}: {e}")

@@ -822,6 +822,12 @@ sites:
 **Tests**: Integration tests for all commands
 **Status**: Complete
 
+**Update**: Enhanced generate command to clean existing sites before regeneration:
+- Removes all sites-available files except 'default' 
+- Removes all sites-enabled symlinks
+- Regenerates symlinks for enabled sites only
+- Provides feedback on cleanup operations
+
 #### Tasks:
 
 1. **Permission Checking Integration**
