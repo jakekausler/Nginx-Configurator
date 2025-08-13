@@ -11,6 +11,7 @@ A simplified YAML-based configuration management system for nginx sites that rep
 - **Backup & Restore**: Automatic backups before changes with easy rollback
 - **Clean Generation**: Complete site cleanup and regeneration for consistency
 - **Migration Tool**: Import existing nginx configurations to YAML format
+- **AWS Route 53 Integration**: Automatically manage DNS records for enabled sites
 
 ## Quick Start
 
@@ -69,9 +70,11 @@ curl -I https://yourdomain.com
 sudo ./nginx-sites generate [OPTIONS]
 
 Options:
-  --dry-run      Show what would be generated without making changes
-  --no-backup    Skip creating backup before generation
-  --force        Skip validation and force generation
+  --dry-run         Show what would be generated without making changes
+  --no-backup       Skip creating backup before generation  
+  --force           Skip validation and force generation
+  --sync-dns        Sync DNS records after successful generation
+  --aws-profile     AWS profile to use for Route 53 (default: route53)
 ```
 
 #### Migrate Existing Setup
@@ -120,6 +123,16 @@ sudo ./nginx-sites backup create [--description "reason"]
 
 # Restore from backup
 sudo ./nginx-sites backup restore backup-name.tar.gz [--force]
+```
+
+### DNS Management
+
+```bash
+# Sync DNS records manually  
+sudo ./nginx-sites sync-dns [--dry-run] [--aws-profile PROFILE]
+
+# Generate configs and sync DNS in one command
+sudo ./nginx-sites generate --sync-dns [--aws-profile PROFILE]
 ```
 
 ## Configuration Format
@@ -370,11 +383,73 @@ sudo ./nginx-sites backup restore backup-name.tar.gz --force
 └── docs/                    # Documentation
 ```
 
+## AWS Route 53 DNS Management
+
+The system can automatically manage DNS records in AWS Route 53 based on your enabled sites.
+
+### Setup
+
+1. **Install AWS CLI (if not already installed):**
+   ```bash
+   pip install awscli
+   ```
+
+2. **Configure AWS profile:**
+   ```bash
+   aws configure --profile route53
+   ```
+   Enter your AWS Access Key ID, Secret Access Key, and region.
+
+3. **Required permissions:**
+   Your AWS user needs the following Route 53 permissions:
+   - `route53:ListHostedZones`
+   - `route53:ListResourceRecordSets` 
+   - `route53:ChangeResourceRecordSets`
+
+### Usage
+
+**Preview DNS changes:**
+```bash
+sudo ./nginx-sites sync-dns --dry-run
+```
+
+**Sync DNS records manually:**
+```bash
+sudo ./nginx-sites sync-dns
+```
+
+**Auto-sync when generating configs:**
+```bash
+sudo ./nginx-sites generate --sync-dns
+```
+
+**Use custom AWS profile:**
+```bash
+sudo ./nginx-sites sync-dns --aws-profile my-profile
+```
+
+### Behavior
+
+- Preserves `jakekausler.com`, NS, and SOA records
+- Creates A records for enabled `.jakekausler.com` subdomains
+- Removes A records for disabled/removed subdomains  
+- All subdomain A records point to the same IP as `jakekausler.com`
+- Uses 300 second TTL for quick DNS propagation
+- Only manages domains ending in `.jakekausler.com`
+
+### Integration with Dynamic IP
+
+Works seamlessly with existing dynamic IP cron jobs:
+- Your cron updates the `jakekausler.com` A record with current IP
+- The DNS sync uses that IP for all subdomain records
+- No conflicts with existing DNS management
+
 ## Requirements
 
 - Python 3.6+
 - nginx
 - certbot (for SSL certificates)
+- boto3 (for AWS Route 53 integration)
 - sudo privileges for system operations
 
 ## Installation

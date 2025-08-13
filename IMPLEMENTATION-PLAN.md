@@ -1508,6 +1508,347 @@ All phases have been successfully implemented and tested. The nginx-sites config
    - Check nginx error logs: `tail -f /var/log/nginx/error.log`
    - Ensure backend service is running
 
+### Phase 8: AWS Route 53 DNS Management
+
+**Goal**: Automatically manage DNS records in AWS Route 53 based on enabled sites
+**Success Criteria**: DNS records are created/removed based on site configuration
+**Tests**: Unit tests for Route 53 integration, mock AWS API calls
+
+#### Tasks:
+
+1. **Route 53 Manager** (`lib/route53_manager.py`)
+   ```python
+   import boto3
+   from typing import Dict, List, Optional, Tuple
+   import logging
+   from botocore.exceptions import ClientError, NoCredentialsError
+   
+   class Route53Manager:
+       """Manage DNS records in AWS Route 53"""
+       
+       def __init__(self, hosted_zone_id: Optional[str] = None):
+           self.hosted_zone_id = hosted_zone_id or self._find_hosted_zone()
+           self.route53 = None
+           self.logger = logging.getLogger(__name__)
+           
+       def _get_client(self):
+           """Get Route 53 client with error handling"""
+           if not self.route53:
+               try:
+                   self.route53 = boto3.client('route53')
+               except NoCredentialsError:
+                   raise Exception("AWS credentials not configured. Run 'aws configure' first.")
+           return self.route53
+           
+       def _find_hosted_zone(self) -> Optional[str]:
+           """Find hosted zone ID for jakekausler.com"""
+           client = self._get_client()
+           try:
+               response = client.list_hosted_zones()
+               for zone in response['HostedZones']:
+                   if zone['Name'] == 'jakekausler.com.':
+                       return zone['Id'].split('/')[-1]  # Remove /hostedzone/ prefix
+               raise Exception("Hosted zone for jakekausler.com not found")
+           except ClientError as e:
+               raise Exception(f"Failed to find hosted zone: {e}")
+   
+       def get_existing_records(self) -> Dict[str, str]:
+           """Get existing A records from Route 53"""
+           client = self._get_client()
+           records = {}
+           
+           try:
+               paginator = client.get_paginator('list_resource_record_sets')
+               for page in paginator.paginate(HostedZoneId=self.hosted_zone_id):
+                   for record in page['ResourceRecordSets']:
+                       if record['Type'] == 'A' and len(record.get('ResourceRecords', [])) > 0:
+                           name = record['Name'].rstrip('.')
+                           ip = record['ResourceRecords'][0]['Value']
+                           records[name] = ip
+               return records
+           except ClientError as e:
+               raise Exception(f"Failed to get existing records: {e}")
+   
+       def get_main_domain_ip(self) -> str:
+           """Get current IP of jakekausler.com A record"""
+           records = self.get_existing_records()
+           if 'jakekausler.com' not in records:
+               raise Exception("jakekausler.com A record not found")
+           return records['jakekausler.com']
+   
+       def sync_dns_records(self, enabled_domains: List[str]) -> Tuple[int, int]:
+           """Sync DNS records with enabled sites
+           
+           Returns: (created_count, deleted_count)
+           """
+           current_records = self.get_existing_records()
+           main_ip = self.get_main_domain_ip()
+           
+           # Preserve essential records
+           essential_records = {'jakekausler.com'}
+           
+           # Determine what should exist
+           target_records = essential_records.copy()
+           for domain in enabled_domains:
+               if domain.endswith('.jakekausler.com'):
+                   target_records.add(domain)
+           
+           # Find records to create and delete
+           to_create = target_records - set(current_records.keys())
+           to_delete = set(current_records.keys()) - target_records - essential_records
+           
+           created_count = 0
+           deleted_count = 0
+           
+           # Create missing records
+           for domain in to_create:
+               if self._create_a_record(domain, main_ip):
+                   created_count += 1
+                   self.logger.info(f"Created A record for {domain}")
+           
+           # Delete obsolete records  
+           for domain in to_delete:
+               if self._delete_a_record(domain, current_records[domain]):
+                   deleted_count += 1
+                   self.logger.info(f"Deleted A record for {domain}")
+           
+           return created_count, deleted_count
+   
+       def _create_a_record(self, domain: str, ip: str) -> bool:
+           """Create A record for domain"""
+           client = self._get_client()
+           
+           try:
+               response = client.change_resource_record_sets(
+                   HostedZoneId=self.hosted_zone_id,
+                   ChangeBatch={
+                       'Changes': [{
+                           'Action': 'CREATE',
+                           'ResourceRecordSet': {
+                               'Name': domain,
+                               'Type': 'A',
+                               'TTL': 300,
+                               'ResourceRecords': [{'Value': ip}]
+                           }
+                       }]
+                   }
+               )
+               return response['ResponseMetadata']['HTTPStatusCode'] == 200
+           except ClientError as e:
+               self.logger.error(f"Failed to create A record for {domain}: {e}")
+               return False
+   
+       def _delete_a_record(self, domain: str, ip: str) -> bool:
+           """Delete A record for domain"""
+           client = self._get_client()
+           
+           try:
+               response = client.change_resource_record_sets(
+                   HostedZoneId=self.hosted_zone_id,
+                   ChangeBatch={
+                       'Changes': [{
+                           'Action': 'DELETE',
+                           'ResourceRecordSet': {
+                               'Name': domain,
+                               'Type': 'A',
+                               'TTL': 300,
+                               'ResourceRecords': [{'Value': ip}]
+                           }
+                       }]
+                   }
+               )
+               return response['ResponseMetadata']['HTTPStatusCode'] == 200
+           except ClientError as e:
+               self.logger.error(f"Failed to delete A record for {domain}: {e}")
+               return False
+   ```
+
+2. **Update Dependencies** (`requirements.txt`)
+   ```
+   boto3>=1.26.0
+   ```
+
+3. **CLI Integration** - Add to `nginx-sites` script:
+   ```python
+   from lib.route53_manager import Route53Manager
+   
+   @cli.command()
+   @click.option('--dry-run', is_flag=True, help='Show what would be changed without making changes')
+   def sync-dns(dry_run: bool):
+       """Sync DNS records with enabled sites"""
+       if not CONFIG_FILE.exists():
+           click.echo(f"Configuration file not found: {CONFIG_FILE}", err=True)
+           return 1
+       
+       try:
+           # Parse configuration to get enabled domains
+           parser = ConfigParser(CONFIG_FILE)
+           enabled_domains = [
+               domain for domain, config in parser.sites.items()
+               if config.get('enabled', True) and domain.endswith('.jakekausler.com')
+           ]
+           
+           if dry_run:
+               route53 = Route53Manager()
+               current_records = route53.get_existing_records()
+               main_ip = route53.get_main_domain_ip()
+               
+               click.echo(f"Main domain IP: {main_ip}")
+               click.echo(f"Enabled subdomains: {len(enabled_domains)}")
+               click.echo("\nCurrent A records:")
+               for domain, ip in current_records.items():
+                   click.echo(f"  {domain} → {ip}")
+               
+               click.echo("\nWould create records for:")
+               for domain in enabled_domains:
+                   if domain not in current_records:
+                       click.echo(f"  {domain} → {main_ip}")
+               
+               click.echo("\nWould delete records for:")
+               essential = {'jakekausler.com'}
+               for domain in current_records:
+                   if domain not in enabled_domains and domain not in essential:
+                       click.echo(f"  {domain}")
+           else:
+               route53 = Route53Manager()
+               created, deleted = route53.sync_dns_records(enabled_domains)
+               
+               click.echo(f"✓ DNS sync complete: {created} created, {deleted} deleted")
+           
+           return 0
+           
+       except Exception as e:
+           click.echo(f"✗ DNS sync failed: {e}", err=True)
+           return 1
+   
+   # Modify generate command to include DNS sync
+   @cli.command()
+   @click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
+   @click.option('--no-backup', is_flag=True, help='Skip creating backup')
+   @click.option('--sync-dns', is_flag=True, help='Sync DNS records after generation')
+   def generate(dry_run: bool, no_backup: bool, sync_dns: bool):
+       """Generate nginx configurations from YAML"""
+       # ... existing generate logic ...
+       
+       # Add DNS sync at the end if requested
+       if sync_dns and not dry_run:
+           try:
+               route53 = Route53Manager()
+               enabled_domains = [
+                   domain for domain, config in parser.sites.items()
+                   if config.get('enabled', True) and domain.endswith('.jakekausler.com')
+               ]
+               created, deleted = route53.sync_dns_records(enabled_domains)
+               click.echo(f"✓ DNS synced: {created} created, {deleted} deleted")
+           except Exception as e:
+               click.echo(f"⚠ DNS sync failed: {e}", err=True)
+       
+       return 0
+   ```
+
+4. **Route 53 Tests** (`tests/test_route53_manager.py`)
+   ```python
+   import pytest
+   from unittest.mock import Mock, patch
+   from lib.route53_manager import Route53Manager
+   
+   @pytest.fixture
+   def mock_route53():
+       with patch('boto3.client') as mock_client:
+           mock_route53 = Mock()
+           mock_client.return_value = mock_route53
+           yield mock_route53
+   
+   def test_get_existing_records(mock_route53):
+       """Test retrieving existing DNS records"""
+       mock_route53.get_paginator.return_value.paginate.return_value = [{
+           'ResourceRecordSets': [
+               {
+                   'Name': 'jakekausler.com.',
+                   'Type': 'A',
+                   'ResourceRecords': [{'Value': '1.2.3.4'}]
+               },
+               {
+                   'Name': 'test.jakekausler.com.',
+                   'Type': 'A', 
+                   'ResourceRecords': [{'Value': '1.2.3.4'}]
+               }
+           ]
+       }]
+       
+       manager = Route53Manager('Z123456789')
+       records = manager.get_existing_records()
+       
+       assert records['jakekausler.com'] == '1.2.3.4'
+       assert records['test.jakekausler.com'] == '1.2.3.4'
+   
+   def test_sync_dns_records():
+       """Test syncing DNS records with enabled sites"""
+       # Test implementation...
+   
+   def test_create_a_record():
+       """Test creating A record"""
+       # Test implementation...
+   
+   def test_delete_a_record():
+       """Test deleting A record"""
+       # Test implementation...
+   ```
+
+5. **AWS Configuration Documentation** - Add to `docs/README.md`:
+   ```markdown
+   ## AWS Route 53 DNS Management
+   
+   The system can automatically manage DNS records in AWS Route 53.
+   
+   ### Setup
+   
+   1. **Install AWS CLI:**
+      ```bash
+      pip install awscli
+      ```
+   
+   2. **Configure credentials:**
+      ```bash
+      aws configure
+      ```
+      Enter your AWS Access Key ID, Secret Access Key, and region.
+   
+   3. **Required permissions:**
+      Your AWS user needs the following Route 53 permissions:
+      - `route53:ListHostedZones`
+      - `route53:ListResourceRecordSets`
+      - `route53:ChangeResourceRecordSets`
+   
+   ### Usage
+   
+   **Sync DNS records manually:**
+   ```bash
+   ./nginx-sites sync-dns [--dry-run]
+   ```
+   
+   **Auto-sync when generating configs:**
+   ```bash
+   ./nginx-sites generate --sync-dns
+   ```
+   
+   ### Behavior
+   
+   - Preserves `jakekausler.com`, NS, and SOA records
+   - Creates A records for enabled `.jakekausler.com` subdomains
+   - Removes A records for disabled subdomains  
+   - All subdomain A records point to the same IP as `jakekausler.com`
+   - Uses 300 second TTL for quick updates
+   ```
+
+#### Success Criteria:
+- Can authenticate with AWS Route 53
+- Correctly identifies enabled subdomains from YAML config  
+- Creates A records for new enabled subdomains
+- Removes A records for disabled subdomains
+- Preserves essential records (jakekausler.com, NS, SOA)
+- Integrates with existing CLI workflow
+
 ## Notes for Implementation
 
 - Start with Phase 1 and ensure each phase is complete before moving on

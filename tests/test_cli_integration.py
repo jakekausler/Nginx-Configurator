@@ -161,6 +161,30 @@ class TestCLIIntegration:
         assert result.returncode == 2  # Click returns 2 for invalid options
         assert 'does not exist' in result.stderr
 
+    def test_sync_dns_missing_config(self, nginx_sites_script):
+        """Test sync-dns with missing config file."""
+        result = subprocess.run([
+            str(nginx_sites_script),
+            '--config', '/nonexistent/config.yaml',
+            'sync-dns', '--dry-run'
+        ], capture_output=True, text=True)
+        
+        assert result.returncode == 2  # Click returns 2 for invalid options
+        assert 'does not exist' in result.stderr
+
+    def test_sync_dns_dry_run(self, nginx_sites_script, temp_config):
+        """Test sync-dns dry-run command."""
+        result = subprocess.run([
+            str(nginx_sites_script),
+            '--config', temp_config,
+            'sync-dns', '--dry-run'
+        ], capture_output=True, text=True)
+        
+        # Should either find no jakekausler.com domains or fail due to AWS credentials
+        assert (result.returncode == 0 and 'No jakekausler.com domains found' in result.stdout) or \
+               'AWS credentials not configured' in result.stderr or \
+               'AWS profile' in result.stderr
+
 
 class TestCLIWorkflow:
     """Test complete CLI workflows."""
@@ -174,7 +198,7 @@ class TestCLIWorkflow:
         assert result.returncode == 0
         
         # Test subcommand help
-        commands_to_test = ['generate', 'migrate', 'validate', 'status']
+        commands_to_test = ['generate', 'migrate', 'validate', 'status', 'sync-dns']
         
         for command in commands_to_test:
             result = subprocess.run([str(script), command, '--help'], capture_output=True, text=True)

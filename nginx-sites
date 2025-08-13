@@ -19,6 +19,7 @@ from lib.certbot_manager import CertbotManager
 from lib.backup import BackupManager
 from lib.validator import NginxValidator
 from lib.permissions import require_sudo_privileges, validate_all_permissions, InsufficientPermissionsError
+from lib.route53_manager import Route53Manager
 
 # Setup logging
 logging.basicConfig(
@@ -103,8 +104,10 @@ def cli(ctx, verbose, config):
 @click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
 @click.option('--no-backup', is_flag=True, help='Skip creating backup')
 @click.option('--force', is_flag=True, help='Skip validation and force generation')
+@click.option('--sync-dns', is_flag=True, help='Sync DNS records after generation')
+@click.option('--aws-profile', default='route53', help='AWS profile to use for Route 53')
 @click.pass_context
-def generate(ctx, dry_run: bool, no_backup: bool, force: bool):
+def generate(ctx, dry_run: bool, no_backup: bool, force: bool, sync_dns: bool, aws_profile: str):
     """Generate nginx configurations from YAML"""
     config_file = ctx.obj['config_file']
     
@@ -199,6 +202,17 @@ def generate(ctx, dry_run: bool, no_backup: bool, force: bool):
                     click.echo("Nginx reloaded successfully")
                 else:
                     click.echo(f"Warning: Failed to reload nginx: {reload_msg}")
+                
+                # Sync DNS records if requested
+                if sync_dns:
+                    try:
+                        route53 = Route53Manager(profile_name=aws_profile)
+                        enabled_domains = list(enabled_sites.keys())
+                        created, deleted = route53.sync_dns_records(enabled_domains)
+                        click.echo(f"DNS sync complete: {created} created, {deleted} deleted")
+                    except Exception as e:
+                        click.echo(f"Warning: DNS sync failed: {e}")
+                        logger.warning(f"DNS sync failed: {e}")
             else:
                 click.echo(f"Error: Generated configuration is invalid: {message}")
                 sys.exit(1)
@@ -577,6 +591,67 @@ def status(ctx, show_ssl: bool):
     except Exception as e:
         click.echo(f"Error getting status: {e}")
         logger.exception("Status check failed")
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--dry-run', is_flag=True, help='Show what would be changed without making changes')
+@click.option('--aws-profile', default='route53', help='AWS profile to use for Route 53')
+@click.pass_context
+def sync_dns(ctx, dry_run: bool, aws_profile: str):
+    """Sync DNS records with enabled sites"""
+    config_file = ctx.obj['config_file']
+    
+    if not config_file.exists():
+        click.echo(f"Error: Configuration file not found: {config_file}")
+        click.echo("Run 'nginx-sites migrate' to create an initial configuration")
+        sys.exit(1)
+    
+    try:
+        # Parse configuration to get enabled domains
+        parser = ConfigParser(config_file)
+        enabled_sites = parser.get_enabled_sites()
+        enabled_domains = [
+            domain for domain in enabled_sites.keys()
+            if domain.endswith('.jakekausler.com') or domain == 'jakekausler.com'
+        ]
+        
+        if not enabled_domains:
+            click.echo("No jakekausler.com domains found in configuration")
+            return
+        
+        # Initialize Route 53 manager
+        route53 = Route53Manager(profile_name=aws_profile)
+        
+        if dry_run:
+            current_records = route53.get_existing_records()
+            main_ip = route53.get_main_domain_ip()
+            
+            click.echo(f"Main domain IP: {main_ip}")
+            click.echo(f"Enabled subdomains: {len([d for d in enabled_domains if d != 'jakekausler.com'])}")
+            click.echo("\nCurrent A records:")
+            for domain, ip in current_records.items():
+                click.echo(f"  {domain} → {ip}")
+            
+            click.echo("\nWould create records for:")
+            for domain in enabled_domains:
+                if domain not in current_records and domain != 'jakekausler.com':
+                    click.echo(f"  {domain} → {main_ip}")
+            
+            click.echo("\nWould delete records for:")
+            essential = {'jakekausler.com'}
+            for domain in current_records:
+                if (domain not in enabled_domains and 
+                    domain not in essential and 
+                    domain.endswith('.jakekausler.com')):
+                    click.echo(f"  {domain}")
+        else:
+            created, deleted = route53.sync_dns_records(enabled_domains)
+            click.echo(f"DNS sync complete: {created} created, {deleted} deleted")
+        
+    except Exception as e:
+        click.echo(f"Error: DNS sync failed: {e}")
+        logger.exception("DNS sync failed")
         sys.exit(1)
 
 

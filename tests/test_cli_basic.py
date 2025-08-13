@@ -55,6 +55,8 @@ class TestCLIBasic:
         assert '--dry-run' in result.stdout
         assert '--no-backup' in result.stdout
         assert '--force' in result.stdout
+        assert '--sync-dns' in result.stdout
+        assert '--aws-profile' in result.stdout
     
     def test_migrate_help(self):
         """Test migrate command help"""
@@ -95,6 +97,19 @@ class TestCLIBasic:
         assert 'create' in result.stdout
         assert 'list' in result.stdout
         assert 'restore' in result.stdout
+
+    def test_sync_dns_help(self):
+        """Test sync-dns command help"""
+        result = subprocess.run(
+            ['python3', str(self.cli_path), 'sync-dns', '--help'],
+            capture_output=True,
+            text=True
+        )
+        
+        assert result.returncode == 0
+        assert 'Sync DNS records with enabled sites' in result.stdout
+        assert '--dry-run' in result.stdout
+        assert '--aws-profile' in result.stdout
     
     def test_status_command(self):
         """Test status command (should work without sudo)"""
