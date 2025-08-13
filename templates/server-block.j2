@@ -1,26 +1,32 @@
-{% if site.websocket_needed -%}
+{% if site.websocket_needed %}
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
 
-{% endif -%}
+{% endif %}
 server {
     server_name {{ domain }}{% if include_www %} www.{{ domain }}{% endif %};
     
-{% if ssl_configured -%}
-{% include 'ssl-section.j2' %}
-{% else -%}
+    {% if ssl_configured %}
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    
+    ssl_certificate /etc/letsencrypt/live/{{ domain }}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+    {% else %}
     listen 80;
     listen [::]:80;
+    {% endif %}
     
-{% endif -%}
-{% if site.root -%}
+    {% if site.root %}
     root {{ site.root }};
     index index.html index.htm index.nginx-debian.html;
+    {% endif %}
     
-{% endif -%}
-{% if site.upstreams -%}
+    {% if site.upstreams %}
     # Proxy configuration
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -28,12 +34,21 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $server_name;
     proxy_buffering {{ site.proxy_buffering | default('off') }};
+    {% endif %}
     
-{% endif -%}
-{% for location in locations -%}
-{% include 'location-block.j2' %}
-
-{% endfor -%}
+    {% for location in locations %}
+    location {{ location.route }} {
+        {% if location.websocket %}
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        {% endif %}
+        {% for header, value in location.headers.items() %}
+        proxy_set_header {{ header }} "{{ value }}";
+        {% endfor %}
+        proxy_pass http://{{ location.target }};
+    }
+    {% endfor %}
 }
 {% if ssl_configured %}
 
