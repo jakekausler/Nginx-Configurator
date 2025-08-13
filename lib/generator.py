@@ -107,20 +107,20 @@ class NginxGenerator:
             config: Site configuration
             
         Returns:
-            True if any port has WebSocket support enabled
+            True if any upstream has WebSocket support enabled
         """
-        if 'ports' not in config:
+        if 'upstreams' not in config:
             return False
         
-        for port_config in config['ports']:
-            if port_config.get('ws', False) and port_config.get('enabled', True):
+        for upstream_config in config['upstreams']:
+            if upstream_config.get('ws', False) and upstream_config.get('enabled', True):
                 return True
         
         return False
     
     def _build_locations(self, config: Dict) -> List[Dict]:
         """
-        Build location blocks from port configurations.
+        Build location blocks from upstream configurations.
         
         Args:
             config: Site configuration
@@ -131,35 +131,35 @@ class NginxGenerator:
         locations = []
         
         # Handle static site (root directive only)
-        if config.get('root') and not config.get('ports'):
+        if config.get('root') and not config.get('upstreams'):
             # Static site - no location blocks needed
             return locations
         
-        if not config.get('ports'):
+        if not config.get('upstreams'):
             return locations
         
-        for port_config in config['ports']:
-            if not port_config.get('enabled', True):
+        for upstream_config in config['upstreams']:
+            if not upstream_config.get('enabled', True):
                 continue
             
             # Standard location for the route
             location = {
-                'route': port_config.get('route', '/'),
-                'port': port_config['port'],
+                'route': upstream_config.get('route', '/'),
+                'target': upstream_config['target'],
                 'websocket': False,
-                'headers': port_config.get('headers', {})
+                'headers': upstream_config.get('headers', {})
             }
             locations.append(location)
             
             # Add WebSocket location if needed
-            if port_config.get('ws', False):
+            if upstream_config.get('ws', False):
                 # For WebSocket support, we need both regular and WebSocket locations
                 # The WebSocket location typically handles /ws/ path
                 ws_location = {
-                    'route': self._get_websocket_route(port_config.get('route', '/')),
-                    'port': port_config['port'],
+                    'route': self._get_websocket_route(upstream_config.get('route', '/')),
+                    'target': upstream_config['target'],
                     'websocket': True,
-                    'headers': port_config.get('headers', {})
+                    'headers': upstream_config.get('headers', {})
                 }
                 
                 # Only add if it's different from the main route
@@ -254,7 +254,7 @@ class NginxGenerator:
                 # Try to render with minimal context to check syntax
                 template.render(
                     domain='test.example.com',
-                    site={'ports': [], 'websocket_needed': False},
+                    site={'upstreams': [], 'websocket_needed': False},
                     ssl_configured=False,
                     locations=[],
                     include_www=True

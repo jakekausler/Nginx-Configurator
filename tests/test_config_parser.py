@@ -28,8 +28,8 @@ class TestConfigParser:
                 },
                 'sites': {
                     'test.example.com': {
-                        'ports': [
-                            {'port': '127.0.0.1:8080'}
+                        'upstreams': [
+                            {'target': '127.0.0.1:8080'}
                         ]
                     }
                 }
@@ -54,8 +54,8 @@ class TestConfigParser:
         
         assert 'test.example.com' in parser.sites
         assert parser.sites['test.example.com']['enabled'] is True
-        assert len(parser.sites['test.example.com']['ports']) == 1
-        assert parser.sites['test.example.com']['ports'][0]['port'] == '127.0.0.1:8080'
+        assert len(parser.sites['test.example.com']['upstreams']) == 1
+        assert parser.sites['test.example.com']['upstreams'][0]['target'] == '127.0.0.1:8080'
     
     def test_load_fixture_config(self, fixture_config):
         """Test loading the fixture configuration file."""
@@ -81,9 +81,9 @@ class TestConfigParser:
         # Check app.example.com has defaults applied
         app_site = parser.sites['app.example.com']
         assert app_site['enabled'] is True
-        assert app_site['ports'][0]['route'] == '/'
-        assert app_site['ports'][0]['ws'] is False
-        assert app_site['ports'][0]['proxy_buffering'] == 'off'
+        assert app_site['upstreams'][0]['route'] == '/'
+        assert app_site['upstreams'][0]['ws'] is False
+        assert app_site['upstreams'][0]['proxy_buffering'] == 'off'
     
     def test_websocket_configuration(self, fixture_config):
         """Test WebSocket configuration parsing."""
@@ -91,7 +91,7 @@ class TestConfigParser:
         
         # Check chat.example.com has WebSocket enabled
         chat_site = parser.sites['chat.example.com']
-        assert chat_site['ports'][0]['ws'] is True
+        assert chat_site['upstreams'][0]['ws'] is True
     
     def test_custom_headers(self, fixture_config):
         """Test custom headers parsing."""
@@ -99,9 +99,9 @@ class TestConfigParser:
         
         # Check custom.example.com has headers
         custom_site = parser.sites['custom.example.com']
-        assert 'headers' in custom_site['ports'][0]
-        assert custom_site['ports'][0]['headers']['X-Custom-Header'] == 'value'
-        assert custom_site['ports'][0]['headers']['X-Another-Header'] == 'another-value'
+        assert 'headers' in custom_site['upstreams'][0]
+        assert custom_site['upstreams'][0]['headers']['X-Custom-Header'] == 'value'
+        assert custom_site['upstreams'][0]['headers']['X-Another-Header'] == 'another-value'
     
     def test_disabled_site(self, fixture_config):
         """Test disabled site configuration."""
@@ -118,7 +118,7 @@ class TestConfigParser:
         # Check static.example.com has root but no ports
         static_site = parser.sites['static.example.com']
         assert static_site['root'] == '/var/www/static.example.com/html'
-        assert 'ports' not in static_site
+        assert 'upstreams' not in static_site
     
     def test_multiple_routes(self, fixture_config):
         """Test site with multiple routes."""
@@ -126,11 +126,11 @@ class TestConfigParser:
         
         # Check api.example.com has multiple routes
         api_site = parser.sites['api.example.com']
-        assert len(api_site['ports']) == 2
-        assert api_site['ports'][0]['route'] == '/api/'
-        assert api_site['ports'][0]['port'] == '192.168.2.148:8746'
-        assert api_site['ports'][1]['route'] == '/'
-        assert api_site['ports'][1]['port'] == '192.168.2.148:8745'
+        assert len(api_site['upstreams']) == 2
+        assert api_site['upstreams'][0]['route'] == '/api/'
+        assert api_site['upstreams'][0]['target'] == '192.168.2.148:8746'
+        assert api_site['upstreams'][1]['route'] == '/'
+        assert api_site['upstreams'][1]['target'] == '192.168.2.148:8745'
     
     def test_get_site(self, fixture_config):
         """Test getting a specific site configuration."""
@@ -138,7 +138,7 @@ class TestConfigParser:
         
         site = parser.get_site('app.example.com')
         assert site is not None
-        assert site['ports'][0]['port'] == '192.168.2.4:6767'
+        assert site['upstreams'][0]['target'] == '192.168.2.4:6767'
         
         # Test non-existent site
         site = parser.get_site('nonexistent.example.com')
@@ -200,7 +200,7 @@ class TestConfigParser:
             config = {
                 'sites': {
                     'invalid domain with spaces': {
-                        'ports': [{'port': '127.0.0.1:8080'}]
+                        'upstreams': [{'target': '127.0.0.1:8080'}]
                     }
                 }
             }
@@ -221,8 +221,8 @@ class TestConfigParser:
             config = {
                 'sites': {
                     'test.example.com': {
-                        'ports': [
-                            {'route': '/'}  # Missing 'port' field
+                        'upstreams': [
+                            {'route': '/'}  # Missing 'target' field
                         ]
                     }
                 }
@@ -234,7 +234,7 @@ class TestConfigParser:
             parser = ConfigParser(temp_path)
             errors = parser.validate_config()
             assert len(errors) > 0
-            assert any("missing 'port' field" in error for error in errors)
+            assert any("missing 'target' field" in error for error in errors)
         finally:
             temp_path.unlink()
     
@@ -244,8 +244,8 @@ class TestConfigParser:
             config = {
                 'sites': {
                     'test.example.com': {
-                        'ports': [
-                            {'port': '8080'}  # Missing IP address
+                        'upstreams': [
+                            {'target': '8080'}  # Missing IP address
                         ]
                     }
                 }
@@ -257,7 +257,7 @@ class TestConfigParser:
             parser = ConfigParser(temp_path)
             errors = parser.validate_config()
             assert len(errors) > 0
-            assert any('invalid port format' in error for error in errors)
+            assert any('invalid target format' in error for error in errors)
         finally:
             temp_path.unlink()
     
@@ -278,7 +278,7 @@ class TestConfigParser:
             parser = ConfigParser(temp_path)
             errors = parser.validate_config()
             assert len(errors) > 0
-            assert any("must have either 'ports' or 'root'" in error for error in errors)
+            assert any("must have either 'upstreams' or 'root'" in error for error in errors)
         finally:
             temp_path.unlink()
     
@@ -294,7 +294,7 @@ class TestConfigParser:
                 },
                 'sites': {
                     'test.example.com': {
-                        'ports': [{'port': '127.0.0.1:8080'}]
+                        'upstreams': [{'target': '127.0.0.1:8080'}]
                     }
                 }
             }
@@ -307,9 +307,9 @@ class TestConfigParser:
             # Check that custom defaults are applied
             site = parser.sites['test.example.com']
             assert site['enabled'] is False
-            assert site['ports'][0]['ws'] is True
-            assert site['ports'][0]['route'] == '/custom/'
-            assert site['ports'][0]['proxy_buffering'] == 'on'
+            assert site['upstreams'][0]['ws'] is True
+            assert site['upstreams'][0]['route'] == '/custom/'
+            assert site['upstreams'][0]['proxy_buffering'] == 'on'
         finally:
             temp_path.unlink()
 

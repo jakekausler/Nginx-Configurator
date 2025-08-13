@@ -9,5 +9,5 @@ location {{ location.route }} {
     proxy_set_header {{ header }} "{{ value }}";
     {%- endfor %}
     
-    proxy_pass http://{{ location.port }};
+    proxy_pass http://{{ location.target }};
 }

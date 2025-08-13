@@ -103,35 +103,35 @@ class ConfigParser:
         if 'enabled' not in config:
             config['enabled'] = self.defaults['enabled']
         
-        # Apply defaults to ports if they exist
-        if 'ports' in config and isinstance(config['ports'], list):
-            for port_config in config['ports']:
-                # Apply port-level defaults
-                if 'route' not in port_config:
-                    port_config['route'] = self.defaults['route']
+        # Apply defaults to upstreams if they exist
+        if 'upstreams' in config and isinstance(config['upstreams'], list):
+            for upstream_config in config['upstreams']:
+                # Apply upstream-level defaults
+                if 'route' not in upstream_config:
+                    upstream_config['route'] = self.defaults['route']
                 
-                if 'ws' not in port_config:
-                    port_config['ws'] = self.defaults['ws']
+                if 'ws' not in upstream_config:
+                    upstream_config['ws'] = self.defaults['ws']
                 
-                if 'enabled' not in port_config:
-                    port_config['enabled'] = True
+                if 'enabled' not in upstream_config:
+                    upstream_config['enabled'] = True
                 
-                if 'proxy_buffering' not in port_config:
-                    port_config['proxy_buffering'] = self.defaults.get('proxy_buffering', 'off')
+                if 'proxy_buffering' not in upstream_config:
+                    upstream_config['proxy_buffering'] = self.defaults.get('proxy_buffering', 'off')
                 
                 # Ensure headers is a dict
-                if 'headers' not in port_config:
-                    port_config['headers'] = {}
-                elif not isinstance(port_config['headers'], dict):
-                    port_config['headers'] = {}
+                if 'headers' not in upstream_config:
+                    upstream_config['headers'] = {}
+                elif not isinstance(upstream_config['headers'], dict):
+                    upstream_config['headers'] = {}
         
         # Handle root-only sites (static sites)
-        if 'root' in config and 'ports' not in config:
+        if 'root' in config and 'upstreams' not in config:
             # Static site with no proxy configuration
             pass
         
         # Apply proxy_buffering default at site level if not specified
-        if 'proxy_buffering' not in config and 'ports' in config:
+        if 'proxy_buffering' not in config and 'upstreams' in config:
             config['proxy_buffering'] = self.defaults.get('proxy_buffering', 'off')
         
         return config
@@ -175,32 +175,32 @@ class ConfigParser:
             if not domain or ' ' in domain:
                 errors.append(f"Invalid domain name: '{domain}'")
             
-            # Check ports configuration
-            if 'ports' in config:
-                if not isinstance(config['ports'], list):
-                    errors.append(f"{domain}: 'ports' must be a list")
+            # Check upstreams configuration
+            if 'upstreams' in config:
+                if not isinstance(config['upstreams'], list):
+                    errors.append(f"{domain}: 'upstreams' must be a list")
                 else:
-                    for i, port_config in enumerate(config['ports']):
-                        if not isinstance(port_config, dict):
-                            errors.append(f"{domain}: port config {i} must be a dictionary")
+                    for i, upstream_config in enumerate(config['upstreams']):
+                        if not isinstance(upstream_config, dict):
+                            errors.append(f"{domain}: upstream config {i} must be a dictionary")
                             continue
                         
-                        # Check for required 'port' field
-                        if 'port' not in port_config:
-                            errors.append(f"{domain}: port config {i} missing 'port' field")
+                        # Check for required 'target' field
+                        if 'target' not in upstream_config:
+                            errors.append(f"{domain}: upstream config {i} missing 'target' field")
                         else:
-                            # Validate port format (basic check)
-                            port = port_config['port']
-                            if not isinstance(port, str) or ':' not in port:
-                                errors.append(f"{domain}: invalid port format '{port}' (expected IP:PORT)")
+                            # Validate target format (basic check)
+                            target = upstream_config['target']
+                            if not isinstance(target, str) or ':' not in target:
+                                errors.append(f"{domain}: invalid target format '{target}' (expected IP:PORT or IP:PORT/path)")
             
             # Check root configuration
             if 'root' in config:
                 if not isinstance(config['root'], str):
                     errors.append(f"{domain}: 'root' must be a string path")
             
-            # Check that site has either 'ports' or 'root'
-            if 'ports' not in config and 'root' not in config:
-                errors.append(f"{domain}: site must have either 'ports' or 'root' configuration")
+            # Check that site has either 'upstreams' or 'root'
+            if 'upstreams' not in config and 'root' not in config:
+                errors.append(f"{domain}: site must have either 'upstreams' or 'root' configuration")
         
         return errors

@@ -1,0 +1,165 @@
+defaults:
+  enabled: true
+  ws: false
+  route: /
+  proxy_buffering: 'off'
+sites:
+  podcast.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8585
+  dw.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8746
+      route: /api/
+    - target: 192.168.2.148:8745
+  hassio.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8123
+      ws: true
+  readarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8787
+  bazarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:6767
+  jakekausler.com:
+    enabled: true
+  grafana.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:3429
+  wiki.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8090
+  calibre-web.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:8083
+  cos.jakekausler.com:
+    enabled: true
+    root: /var/www/cos/html
+  plex.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:32400
+  mylarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:8090
+  udo.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:14572
+  kiwix.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:8081
+  kingmaker.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:9035
+      ws: true
+  lego.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:7143
+  booksonic.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:4040
+  tautulli.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8333
+  foundry.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:30000
+  calibre.jakekausler.com:
+    enabled: true
+  nzbhydra.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:5076
+  radarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8310
+  udo-dev.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:14573
+  library.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8181
+    root: /var/www/library.jakekausler.com/html
+  deadlands.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:7492
+      ws: true
+  readarr-audio.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8788
+  lidarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:8686
+  nzbget.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:6789
+  uboquity.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:2202
+  actualplays.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:3984
+  sonarr.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:8989
+  mapserver.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:5437
+  transmission.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:9091
+  ombi.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:3579
+  flashcards.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:5000
+  bills.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:5173
+  grocy.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:9283
+  billsdev.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.148:5174
+    - target: 192.168.2.148:5003/api/
+      route: /api/
+  jackett.jakekausler.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.2.4:9117

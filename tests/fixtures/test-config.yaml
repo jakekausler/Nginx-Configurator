@@ -7,8 +7,8 @@ defaults:
 sites:
   # Simple proxy example
   app.example.com:
-    ports:
-      - port: 192.168.2.4:6767
+    upstreams:
+      - target: 192.168.2.4:6767
 
   # Static site with root directory
   static.example.com:
@@ -16,22 +16,22 @@ sites:
 
   # Multiple routes example
   api.example.com:
-    ports:
-      - port: 192.168.2.148:8746
+    upstreams:
+      - target: 192.168.2.148:8746
         route: "/api/"
-      - port: 192.168.2.148:8745
+      - target: 192.168.2.148:8745
         route: "/"
 
   # WebSocket support example
   chat.example.com:
-    ports:
-      - port: 192.168.2.148:7492
+    upstreams:
+      - target: 192.168.2.148:7492
         ws: true
 
   # Custom headers example
   custom.example.com:
-    ports:
-      - port: 192.168.2.148:8123
+    upstreams:
+      - target: 192.168.2.148:8123
         ws: true
         headers:
           X-Custom-Header: "value"
@@ -40,5 +40,5 @@ sites:
   # Disabled site example
   disabled.example.com:
     enabled: false
-    ports:
-      - port: 192.168.2.100:8000
+    upstreams:
+      - target: 192.168.2.100:8000

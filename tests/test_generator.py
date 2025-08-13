@@ -53,7 +53,7 @@ location {{ location.route }} {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
     {%- endif %}
-    proxy_pass http://{{ location.port }};
+    proxy_pass http://{{ location.target }};
 }
 """)
             
@@ -85,9 +85,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,
@@ -111,9 +111,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': True,
                     'enabled': True,
@@ -139,16 +139,16 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,
                     'headers': {}
                 },
                 {
-                    'port': '127.0.0.1:8081',
+                    'target': '127.0.0.1:8081',
                     'route': '/api/',
                     'ws': False,
                     'enabled': True,
@@ -189,9 +189,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': False,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,
@@ -212,16 +212,16 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,
                     'headers': {}
                 },
                 {
-                    'port': '127.0.0.1:8081',
+                    'target': '127.0.0.1:8081',
                     'route': '/disabled/',
                     'ws': False,
                     'enabled': False,  # This port is disabled
@@ -243,24 +243,24 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         # Config with WebSocket
         config_with_ws = {
-            'ports': [
-                {'port': '127.0.0.1:8080', 'ws': True, 'enabled': True}
+            'upstreams': [
+                {'target': '127.0.0.1:8080', 'ws': True, 'enabled': True}
             ]
         }
         assert generator._needs_websocket_map(config_with_ws) is True
         
         # Config without WebSocket
         config_without_ws = {
-            'ports': [
-                {'port': '127.0.0.1:8080', 'ws': False, 'enabled': True}
+            'upstreams': [
+                {'target': '127.0.0.1:8080', 'ws': False, 'enabled': True}
             ]
         }
         assert generator._needs_websocket_map(config_without_ws) is False
         
         # Config with disabled WebSocket port
         config_disabled_ws = {
-            'ports': [
-                {'port': '127.0.0.1:8080', 'ws': True, 'enabled': False}
+            'upstreams': [
+                {'target': '127.0.0.1:8080', 'ws': True, 'enabled': False}
             ]
         }
         assert generator._needs_websocket_map(config_disabled_ws) is False
@@ -283,9 +283,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         generator = NginxGenerator(temp_template_dir)
         
         config = {
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': True,
                     'enabled': True,
@@ -302,14 +302,14 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         # Check regular location
         regular_location = locations[0]
         assert regular_location['route'] == '/'
-        assert regular_location['port'] == '127.0.0.1:8080'
+        assert regular_location['target'] == '127.0.0.1:8080'
         assert regular_location['websocket'] is False
         assert regular_location['headers'] == {'X-Custom': 'value'}
         
         # Check WebSocket location
         ws_location = locations[1]
         assert ws_location['route'] == '/ws/'
-        assert ws_location['port'] == '127.0.0.1:8080'
+        assert ws_location['target'] == '127.0.0.1:8080'
         assert ws_location['websocket'] is True
         assert ws_location['headers'] == {'X-Custom': 'value'}
     
@@ -337,9 +337,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         sites_config = {
             'site1.example.com': {
                 'enabled': True,
-                'ports': [
+                'upstreams': [
                     {
-                        'port': '127.0.0.1:8080',
+                        'target': '127.0.0.1:8080',
                         'route': '/',
                         'ws': False,
                         'enabled': True,
@@ -349,9 +349,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
             },
             'site2.example.com': {
                 'enabled': True,
-                'ports': [
+                'upstreams': [
                     {
-                        'port': '127.0.0.1:8081',
+                        'target': '127.0.0.1:8081',
                         'route': '/',
                         'ws': True,
                         'enabled': True,
@@ -361,9 +361,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
             },
             'disabled.example.com': {
                 'enabled': False,
-                'ports': [
+                'upstreams': [
                     {
-                        'port': '127.0.0.1:8082',
+                        'target': '127.0.0.1:8082',
                         'route': '/',
                         'ws': False,
                         'enabled': True,
@@ -396,9 +396,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,
@@ -438,9 +438,9 @@ ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
         
         config = {
             'enabled': True,
-            'ports': [
+            'upstreams': [
                 {
-                    'port': '127.0.0.1:8080',
+                    'target': '127.0.0.1:8080',
                     'route': '/',
                     'ws': False,
                     'enabled': True,

@@ -68,8 +68,8 @@ defaults:
 sites:
   # Simple proxy example
   bazarr.jakekausler.com:
-    ports:
-      - port: 192.168.2.4:6767
+    upstreams:
+      - target: 192.168.2.4:6767
   
   # Static site with root directory
   jakekausler.com:
@@ -77,22 +77,22 @@ sites:
   
   # Multiple routes example
   dw.jakekausler.com:
-    ports:
-      - port: 192.168.2.148:8746
+    upstreams:
+      - target: 192.168.2.148:8746
         route: "/api/"
-      - port: 192.168.2.148:8745
+      - target: 192.168.2.148:8745
         route: "/"
   
   # WebSocket support example
   deadlands.jakekausler.com:
-    ports:
-      - port: 192.168.2.148:7492
+    upstreams:
+      - target: 192.168.2.148:7492
         ws: true  # Creates both / and /ws/ locations
   
   # Custom headers example
   hassio.jakekausler.com:
-    ports:
-      - port: 192.168.2.148:8123
+    upstreams:
+      - target: 192.168.2.148:8123
         ws: true
         headers:
           X-Custom-Header: "value"
@@ -101,8 +101,8 @@ sites:
   # Disabled site example
   old-service.jakekausler.com:
     enabled: false
-    ports:
-      - port: 192.168.2.100:8000
+    upstreams:
+      - target: 192.168.2.100:8000
 ```
 
 ### Field Definitions
@@ -111,11 +111,11 @@ sites:
 - **sites**: Dictionary of domain configurations
   - **enabled**: Whether to generate config and enable site (default: true)
   - **root**: Document root directory (only if serving static files)
-  - **ports**: Array of proxy configurations
-    - **port**: Target IP:port for proxying
+  - **upstreams**: Array of proxy configurations
+    - **target**: Target upstream URL (IP:port or IP:port/path)
     - **route**: URL path for this proxy (default: "/")
     - **ws**: Enable WebSocket support (default: false)
-    - **enabled**: Whether this specific port is active (default: true)
+    - **enabled**: Whether this specific upstream is active (default: true)
     - **headers**: Custom headers for this location
     - **proxy_buffering**: Override proxy buffering setting
 
@@ -414,11 +414,14 @@ sites:
        # Test implementation...
    ```
 
-### Phase 3: Migration Tool
+### Phase 3: Migration Tool ✅
 
 **Goal**: Parse existing nginx configs and create initial YAML
-**Success Criteria**: Can import all existing configurations
+**Success Criteria**: Can import all existing configurations  
 **Tests**: Integration tests with sample nginx configs
+**Status**: Complete
+
+**Terminology Change**: During Phase 3 implementation, changed field name from `ports` to `upstreams` and value from `port` to `target` to better reflect that these are complete upstream URLs (e.g., `192.168.2.148:5003/api/`) rather than just port numbers. This change has been reflected throughout the documentation and will need to be carried forward to subsequent phases.
 
 #### Tasks:
 
