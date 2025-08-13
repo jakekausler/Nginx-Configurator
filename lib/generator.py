@@ -200,19 +200,15 @@ class NginxGenerator:
             domain: Domain name to check
             
         Returns:
-            True if SSL certificates exist, False otherwise
-            
-        Raises:
-            PermissionError: If insufficient permissions to check SSL certificates
+            True if SSL certificates exist, False otherwise (or if permission denied)
         """
         cert_path = Path(f'/etc/letsencrypt/live/{domain}/fullchain.pem')
         try:
             return cert_path.exists()
-        except PermissionError as e:
-            raise PermissionError(
-                f"Insufficient permissions to check SSL certificates. "
-                f"Please run with sudo privileges. Original error: {e}"
-            )
+        except PermissionError:
+            # If we can't check due to permissions, assume no SSL for dry-run purposes
+            # This allows dry-run to work without sudo privileges
+            return False
     
     def generate_all_sites(self, sites_config: Dict[str, Dict]) -> Dict[str, str]:
         """
