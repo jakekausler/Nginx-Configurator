@@ -234,11 +234,19 @@ sites:
        # Test implementation...
    ```
 
-### Phase 2: Template System and Generation
+### Phase 2: Template System and Generation ✅
 
 **Goal**: Create Jinja2 templates and generation logic
 **Success Criteria**: Can generate valid nginx configs from YAML
 **Tests**: Unit tests for generation, template rendering
+**Status**: Complete
+
+**Additional Components Created:**
+- **Permission Checking Utility** (`lib/permissions.py`) - Created for use in Phase 6
+  - Sudo privilege checking
+  - Nginx directory permission validation
+  - Let's Encrypt permission checking
+  - Graceful error handling with clear messages
 
 #### Tasks:
 
@@ -812,7 +820,12 @@ sites:
 
 #### Tasks:
 
-1. **Main CLI Script** (`nginx-sites`)
+1. **Permission Checking Integration**
+   - Integrate `lib/permissions.py` (created in Phase 2) for sudo privilege checking
+   - Add permission validation at command entry points
+   - Provide clear error messages when insufficient permissions detected
+
+2. **Main CLI Script** (`nginx-sites`)
    ```python
    #!/usr/bin/env python3
    """
@@ -833,6 +846,7 @@ sites:
    from lib.certbot_manager import CertbotManager
    from lib.backup import BackupManager
    from lib.validator import NginxValidator
+   from lib.permissions import require_sudo_privileges
    
    # Setup logging
    logging.basicConfig(
@@ -859,6 +873,10 @@ sites:
    @click.option('--no-backup', is_flag=True, help='Skip creating backup')
    def generate(dry_run: bool, no_backup: bool):
        """Generate nginx configurations from YAML"""
+       # Check permissions first (unless dry-run)
+       if not dry_run:
+           require_sudo_privileges()
+       
        if not CONFIG_FILE.exists():
            click.echo(f"Configuration file not found: {CONFIG_FILE}", err=True)
            return 1
@@ -1033,6 +1051,8 @@ sites:
    @cli.command()
    def validate():
        """Validate nginx configuration"""
+       require_sudo_privileges()
+       
        validator = NginxValidator()
        valid, message = validator.validate_config()
        
@@ -1046,6 +1066,8 @@ sites:
    @cli.command()
    def reload():
        """Reload nginx service"""
+       require_sudo_privileges()
+       
        # Validate first
        validator = NginxValidator()
        valid, message = validator.validate_config()
