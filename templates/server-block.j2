@@ -1,19 +1,26 @@
-{%- if site.websocket_needed -%}
+{% if site.websocket_needed -%}
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
-{% endif %}
 
+{% endif -%}
 server {
     server_name {{ domain }}{% if include_www %} www.{{ domain }}{% endif %};
     
-    {%- if site.root %}
+{% if ssl_configured -%}
+{% include 'ssl-section.j2' %}
+{% else -%}
+    listen 80;
+    listen [::]:80;
+    
+{% endif -%}
+{% if site.root -%}
     root {{ site.root }};
     index index.html index.htm index.nginx-debian.html;
-    {%- endif %}
     
-    {%- if site.upstreams %}
+{% endif -%}
+{% if site.upstreams -%}
     # Proxy configuration
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -21,18 +28,15 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $server_name;
     proxy_buffering {{ site.proxy_buffering | default('off') }};
-    {%- endif %}
     
-    {%- for location in locations %}
-    {% include 'location-block.j2' %}
-    {%- endfor %}
-    
-    {%- if ssl_configured %}
-    {% include 'ssl-section.j2' %}
-    {%- endif %}
-}
+{% endif -%}
+{% for location in locations -%}
+{% include 'location-block.j2' %}
 
-{%- if ssl_configured %}
+{% endfor -%}
+}
+{% if ssl_configured %}
+
 # HTTP to HTTPS redirect
 server {
     listen 80;
@@ -45,4 +49,4 @@ server {
     
     return 404; # managed by Certbot
 }
-{%- endif %}
+{% endif %}
