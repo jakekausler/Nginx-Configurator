@@ -238,6 +238,29 @@ sites:
       - target: 192.168.1.100:8971
 ```
 
+#### Site with WebSocket/HTTP Upgrade Support
+```yaml
+sites:
+  websocket-app.example.com:
+    upstreams:
+      - target: 192.168.1.100:8080
+        headers:
+          Upgrade: $http_upgrade
+          Connection: $http_connection
+```
+
+#### Advanced: Frigate with HTTP Backend and WebSocket Support
+```yaml
+sites:
+  frigate.example.com:
+    backend_https: false  # Frigate with TLS disabled
+    upstreams:
+      - target: 192.168.1.100:8971
+        headers:
+          Upgrade: $http_upgrade
+          Connection: $http_connection
+```
+
 ### Field Reference
 
 | Field | Type | Description | Default |
@@ -253,6 +276,8 @@ sites:
 | `upstreams[].enabled` | boolean | Whether this upstream is active | `true` |
 | `upstreams[].headers` | object | Custom headers for this location | `{}` |
 | `proxy_buffering` | string | Proxy buffering setting | `"off"` |
+
+**Note**: When `Upgrade` or `Connection` headers are specified in `upstreams[].headers`, `proxy_http_version 1.1` is automatically added for proper WebSocket and HTTP upgrade support.
 
 ## Workflow Examples
 

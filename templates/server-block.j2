@@ -51,6 +51,9 @@ server {
         {% for header, value in location.headers.items() %}
         proxy_set_header {{ header }} "{{ value }}";
         {% endfor %}
+        {% if location.headers.get('Upgrade') or location.headers.get('Connection') %}
+        proxy_http_version 1.1;
+        {% endif %}
         {% if site.backend_https %}
         proxy_pass https://{{ location.target }};
         proxy_ssl_verify off;
