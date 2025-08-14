@@ -75,7 +75,7 @@ class NginxGenerator:
         
         context = {
             'domain': domain,
-            'include_www': True,  # Could be configurable in the future
+            'include_www': config.get('include_www', False),
             'site': processed_config,
             'ssl_configured': self._check_ssl_exists(domain),
             'locations': self._build_locations(config)

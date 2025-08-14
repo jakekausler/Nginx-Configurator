@@ -3,6 +3,8 @@ defaults:
   ws: false
   route: /
   proxy_buffering: 'off'
+  include_www: false
+  backend_https: false
 
 sites:
   # Example site with proxy to application server
@@ -67,3 +69,17 @@ sites:
     - target: 192.168.1.100:3000
     - target: 192.168.1.100:8080
       route: /api/
+
+  # Example site that includes www subdomain
+  corporate.example.com:
+    enabled: true
+    include_www: true
+    upstreams:
+    - target: 192.168.1.100:9000
+
+  # Example site with HTTPS backend (like Frigate)
+  security.example.com:
+    enabled: true
+    backend_https: true
+    upstreams:
+    - target: 192.168.1.100:8971

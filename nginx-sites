@@ -299,10 +299,26 @@ def ssl(ctx, domain: str, email: Optional[str], dry_run: bool):
             return
     
     try:
+        # Load configuration to check include_www setting
+        config_path = Path('sites-config.yaml')
+        include_www = False
+        
+        if config_path.exists():
+            try:
+                parser = ConfigParser(config_path)
+                site_config = parser.get_site(domain)
+                if site_config:
+                    include_www = site_config.get('include_www', False)
+            except Exception as e:
+                click.echo(f"Warning: Could not read configuration: {e}")
+                click.echo("Proceeding without www subdomain...")
+        
         certbot = CertbotManager(dry_run=dry_run)
         
         click.echo(f"Requesting SSL certificate for {domain}...")
-        success, message = certbot.request_certificate(domain, email)
+        if include_www:
+            click.echo(f"Including www.{domain} subdomain based on configuration")
+        success, message = certbot.request_certificate(domain, email, include_www)
         
         if success:
             if dry_run:

@@ -18,7 +18,9 @@ class ConfigParser:
         'enabled': True,
         'ws': False,
         'route': '/',
-        'proxy_buffering': 'off'
+        'proxy_buffering': 'off',
+        'include_www': False,
+        'backend_https': False
     }
     
     def __init__(self, config_path: Path):
@@ -102,6 +104,12 @@ class ConfigParser:
         # Apply site-level defaults
         if 'enabled' not in config:
             config['enabled'] = self.defaults['enabled']
+        
+        if 'include_www' not in config:
+            config['include_www'] = self.defaults['include_www']
+        
+        if 'backend_https' not in config:
+            config['backend_https'] = self.defaults['backend_https']
         
         # Apply defaults to upstreams if they exist
         if 'upstreams' in config and isinstance(config['upstreams'], list):

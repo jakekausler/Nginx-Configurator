@@ -27,7 +27,7 @@ class TestCertbotManager:
     @patch('lib.certbot_manager.subprocess.run')
     @patch('lib.certbot_manager.check_sudo_privileges')
     def test_request_certificate_success(self, mock_sudo, mock_run):
-        """Test successful certificate request"""
+        """Test successful certificate request without www"""
         mock_sudo.return_value = None
         mock_run.return_value = MagicMock(returncode=0, stdout='Certificate obtained')
         
@@ -44,7 +44,31 @@ class TestCertbotManager:
             assert '--nginx' in cmd
             assert '-d' in cmd
             assert 'example.com' in cmd
-            assert 'www.example.com' in cmd
+            assert 'www.example.com' not in cmd  # Should not include www by default
+            assert '--email' in cmd
+            assert 'admin@example.com' in cmd
+
+    @patch('lib.certbot_manager.subprocess.run')
+    @patch('lib.certbot_manager.check_sudo_privileges')
+    def test_request_certificate_with_www(self, mock_sudo, mock_run):
+        """Test successful certificate request with www"""
+        mock_sudo.return_value = None
+        mock_run.return_value = MagicMock(returncode=0, stdout='Certificate obtained')
+        
+        with patch.object(self.certbot_prod, 'check_certificate_exists', return_value=False):
+            success, message = self.certbot_prod.request_certificate('example.com', 'admin@example.com', include_www=True)
+            
+            assert success is True
+            assert 'Certificate obtained' in message
+            
+            # Verify command construction
+            mock_run.assert_called_once()
+            cmd = mock_run.call_args[0][0]
+            assert 'certbot' in cmd
+            assert '--nginx' in cmd
+            assert '-d' in cmd
+            assert 'example.com' in cmd
+            assert 'www.example.com' in cmd  # Should include www when requested
             assert '--email' in cmd
             assert 'admin@example.com' in cmd
     

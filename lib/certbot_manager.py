@@ -20,7 +20,7 @@ class CertbotManager:
         cert_path = Path(f'/etc/letsencrypt/live/{domain}/fullchain.pem')
         return cert_path.exists()
     
-    def request_certificate(self, domain: str, email: Optional[str] = None) -> Tuple[bool, str]:
+    def request_certificate(self, domain: str, email: Optional[str] = None, include_www: bool = False) -> Tuple[bool, str]:
         """Request certificate for domain"""
         # Check permissions first (unless dry-run)
         if not self.dry_run:
@@ -35,8 +35,9 @@ class CertbotManager:
         # Build certbot command
         cmd = ['certbot', '--nginx', '-d', domain]
         
-        # Add www subdomain
-        cmd.extend(['-d', f'www.{domain}'])
+        # Add www subdomain if requested
+        if include_www:
+            cmd.extend(['-d', f'www.{domain}'])
         
         # Non-interactive mode
         cmd.append('--non-interactive')

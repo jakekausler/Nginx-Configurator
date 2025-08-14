@@ -145,6 +145,8 @@ defaults:
   ws: false                  # WebSocket support disabled by default
   route: "/"                 # Default route
   proxy_buffering: "off"     # Default proxy buffering setting
+  include_www: false         # Include www subdomain in server_name
+  backend_https: false       # Use HTTPS for backend connections
 
 sites:
   domain.example.com:
@@ -218,11 +220,31 @@ sites:
       - target: 127.0.0.1:9000
 ```
 
+#### Site with www Subdomain Support
+```yaml
+sites:
+  corporate.example.com:
+    include_www: true  # This will include www.corporate.example.com in server_name
+    upstreams:
+      - target: 127.0.0.1:8080
+```
+
+#### Site with HTTPS Backend
+```yaml
+sites:
+  frigate.example.com:
+    backend_https: true  # Backend service requires HTTPS connections
+    upstreams:
+      - target: 192.168.1.100:8971
+```
+
 ### Field Reference
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `enabled` | boolean | Whether to generate config and enable site | `true` |
+| `include_www` | boolean | Include www subdomain in server_name (for SSL certificates) | `false` |
+| `backend_https` | boolean | Use HTTPS for backend connections (adds proxy_ssl_verify off) | `false` |
 | `root` | string | Document root directory for static files | - |
 | `upstreams` | array | List of proxy upstream configurations | - |
 | `upstreams[].target` | string | Target upstream (IP:port or IP:port/path) | - |
