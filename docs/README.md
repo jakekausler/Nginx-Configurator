@@ -374,7 +374,7 @@ sudo ./nginx-sites backup restore backup-name.tar.gz --force
 ## Files and Directories
 
 ```
-/storage/programs/nginx-configuator/
+/path/to/nginx-configuator/
 ├── nginx-sites              # Main executable
 ├── sites-config.yaml        # Your configuration file
 ├── templates/               # Nginx configuration templates
@@ -430,17 +430,17 @@ sudo ./nginx-sites sync-dns --aws-profile my-profile
 
 ### Behavior
 
-- Preserves `jakekausler.com`, NS, and SOA records
-- Creates A records for enabled `.jakekausler.com` subdomains
+- Preserves main domain, NS, and SOA records
+- Creates A records for enabled subdomains
 - Removes A records for disabled/removed subdomains  
-- All subdomain A records point to the same IP as `jakekausler.com`
+- All subdomain A records point to the same IP as the main domain
 - Uses 300 second TTL for quick DNS propagation
-- Only manages domains ending in `.jakekausler.com`
+- Only manages domains ending in your configured domain
 
 ### Integration with Dynamic IP
 
 Works seamlessly with existing dynamic IP cron jobs:
-- Your cron updates the `jakekausler.com` A record with current IP
+- Your cron updates the main domain A record with current IP
 - The DNS sync uses that IP for all subdomain records
 - No conflicts with existing DNS management
 
@@ -465,7 +465,7 @@ Works seamlessly with existing dynamic IP cron jobs:
    ```
 4. **Optional - Create system symlink:**
    ```bash
-   sudo ln -s /storage/programs/nginx-configuator/nginx-sites /usr/local/bin/nginx-sites
+   sudo ln -s /path/to/nginx-configuator/nginx-sites /usr/local/bin/nginx-sites
    ```
 
 ## Contributing

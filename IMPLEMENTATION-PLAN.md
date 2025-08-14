@@ -17,7 +17,7 @@ This project creates a simplified, YAML-based configuration management system fo
 ### Directory Structure
 
 ```
-/storage/programs/nginx-configuator/
+/path/to/nginx-configuator/
 ├── nginx-sites                 # Main executable script
 ├── sites-config.yaml           # Master configuration file
 ├── templates/                  # Jinja2 templates for nginx configs
@@ -67,42 +67,42 @@ defaults:
   
 sites:
   # Simple proxy example
-  bazarr.jakekausler.com:
+  app.example.com:
     upstreams:
-      - target: 192.168.2.4:6767
+      - target: 192.168.1.100:8080
   
   # Static site with root directory
-  jakekausler.com:
-    root: /var/www/jakekausler.com/html
+  example.com:
+    root: /var/www/example.com/html
   
   # Multiple routes example
-  dw.jakekausler.com:
+  api.example.com:
     upstreams:
-      - target: 192.168.2.148:8746
-        route: "/api/"
-      - target: 192.168.2.148:8745
-        route: "/"
+      - target: 192.168.1.100:3000
+        route: "/api/v1/"
+      - target: 192.168.1.100:3001
+        route: "/api/v2/"
   
   # WebSocket support example
-  deadlands.jakekausler.com:
+  chat.example.com:
     upstreams:
-      - target: 192.168.2.148:7492
+      - target: 192.168.1.100:8765
         ws: true  # Creates both / and /ws/ locations
   
   # Custom headers example
-  hassio.jakekausler.com:
+  service.example.com:
     upstreams:
-      - target: 192.168.2.148:8123
+      - target: 192.168.1.100:8080
         ws: true
         headers:
           X-Custom-Header: "value"
           X-Another-Header: "another-value"
   
   # Disabled site example
-  old-service.jakekausler.com:
+  old-service.example.com:
     enabled: false
     upstreams:
-      - target: 192.168.2.100:8000
+      - target: 192.168.1.100:9000
 ```
 
 ### Field Definitions
@@ -132,7 +132,7 @@ sites:
 1. **Project Setup**
    ```bash
    # Create directory structure
-   mkdir -p /storage/programs/nginx-configuator/{lib,tests,templates,backups,docs}
+   mkdir -p /path/to/nginx-configuator/{lib,tests,templates,backups,docs}
    cd /storage/programs/nginx-configuator
    
    # Initialize git repository
@@ -535,7 +535,7 @@ sites:
            if match:
                root = match.group(1).strip()
                # Only return non-default roots
-               if root != '/var/www/jakekausler.com/html':
+               if root not in ['/var/www/html', '/usr/share/nginx/html']:
                    return root
            return None
        
@@ -1464,7 +1464,7 @@ All phases have been successfully implemented and tested. The nginx-sites config
    ```bash
    cd /storage/programs/nginx-configuator
    pip install -r requirements.txt
-   sudo ln -s /storage/programs/nginx-configuator/nginx-sites /usr/local/bin/nginx-sites
+   sudo ln -s /path/to/nginx-configuator/nginx-sites /usr/local/bin/nginx-sites
    ```
 
 2. **Initial migration:**
@@ -1541,14 +1541,14 @@ All phases have been successfully implemented and tested. The nginx-sites config
            return self.route53
            
        def _find_hosted_zone(self) -> Optional[str]:
-           """Find hosted zone ID for jakekausler.com"""
+           """Find hosted zone ID for example.com"""
            client = self._get_client()
            try:
                response = client.list_hosted_zones()
                for zone in response['HostedZones']:
-                   if zone['Name'] == 'jakekausler.com.':
+                   if zone['Name'] == 'example.com.':
                        return zone['Id'].split('/')[-1]  # Remove /hostedzone/ prefix
-               raise Exception("Hosted zone for jakekausler.com not found")
+               raise Exception("Hosted zone for example.com not found")
            except ClientError as e:
                raise Exception(f"Failed to find hosted zone: {e}")
    
@@ -1570,11 +1570,11 @@ All phases have been successfully implemented and tested. The nginx-sites config
                raise Exception(f"Failed to get existing records: {e}")
    
        def get_main_domain_ip(self) -> str:
-           """Get current IP of jakekausler.com A record"""
+           """Get current IP of example.com A record"""
            records = self.get_existing_records()
-           if 'jakekausler.com' not in records:
-               raise Exception("jakekausler.com A record not found")
-           return records['jakekausler.com']
+           if 'example.com' not in records:
+               raise Exception("example.com A record not found")
+           return records['example.com']
    
        def sync_dns_records(self, enabled_domains: List[str]) -> Tuple[int, int]:
            """Sync DNS records with enabled sites
@@ -1585,12 +1585,12 @@ All phases have been successfully implemented and tested. The nginx-sites config
            main_ip = self.get_main_domain_ip()
            
            # Preserve essential records
-           essential_records = {'jakekausler.com'}
+           essential_records = {'example.com'}
            
            # Determine what should exist
            target_records = essential_records.copy()
            for domain in enabled_domains:
-               if domain.endswith('.jakekausler.com'):
+               if domain.endswith('.example.com'):
                    target_records.add(domain)
            
            # Find records to create and delete
@@ -1685,7 +1685,7 @@ All phases have been successfully implemented and tested. The nginx-sites config
            parser = ConfigParser(CONFIG_FILE)
            enabled_domains = [
                domain for domain, config in parser.sites.items()
-               if config.get('enabled', True) and domain.endswith('.jakekausler.com')
+               if config.get('enabled', True) and domain.endswith('.example.com')
            ]
            
            if dry_run:
@@ -1705,7 +1705,7 @@ All phases have been successfully implemented and tested. The nginx-sites config
                        click.echo(f"  {domain} → {main_ip}")
                
                click.echo("\nWould delete records for:")
-               essential = {'jakekausler.com'}
+               essential = {'example.com'}
                for domain in current_records:
                    if domain not in enabled_domains and domain not in essential:
                        click.echo(f"  {domain}")
@@ -1736,7 +1736,7 @@ All phases have been successfully implemented and tested. The nginx-sites config
                route53 = Route53Manager()
                enabled_domains = [
                    domain for domain, config in parser.sites.items()
-                   if config.get('enabled', True) and domain.endswith('.jakekausler.com')
+                   if config.get('enabled', True) and domain.endswith('.example.com')
                ]
                created, deleted = route53.sync_dns_records(enabled_domains)
                click.echo(f"✓ DNS synced: {created} created, {deleted} deleted")
@@ -1764,12 +1764,12 @@ All phases have been successfully implemented and tested. The nginx-sites config
        mock_route53.get_paginator.return_value.paginate.return_value = [{
            'ResourceRecordSets': [
                {
-                   'Name': 'jakekausler.com.',
+                   'Name': 'example.com.',
                    'Type': 'A',
                    'ResourceRecords': [{'Value': '1.2.3.4'}]
                },
                {
-                   'Name': 'test.jakekausler.com.',
+                   'Name': 'test.example.com.',
                    'Type': 'A', 
                    'ResourceRecords': [{'Value': '1.2.3.4'}]
                }
@@ -1779,8 +1779,8 @@ All phases have been successfully implemented and tested. The nginx-sites config
        manager = Route53Manager('Z123456789')
        records = manager.get_existing_records()
        
-       assert records['jakekausler.com'] == '1.2.3.4'
-       assert records['test.jakekausler.com'] == '1.2.3.4'
+       assert records['example.com'] == '1.2.3.4'
+       assert records['test.example.com'] == '1.2.3.4'
    
    def test_sync_dns_records():
        """Test syncing DNS records with enabled sites"""
@@ -1834,10 +1834,10 @@ All phases have been successfully implemented and tested. The nginx-sites config
    
    ### Behavior
    
-   - Preserves `jakekausler.com`, NS, and SOA records
-   - Creates A records for enabled `.jakekausler.com` subdomains
+   - Preserves `example.com`, NS, and SOA records
+   - Creates A records for enabled `.example.com` subdomains
    - Removes A records for disabled subdomains  
-   - All subdomain A records point to the same IP as `jakekausler.com`
+   - All subdomain A records point to the same IP as `example.com`
    - Uses 300 second TTL for quick updates
    ```
 
@@ -1846,7 +1846,7 @@ All phases have been successfully implemented and tested. The nginx-sites config
 - Correctly identifies enabled subdomains from YAML config  
 - Creates A records for new enabled subdomains
 - Removes A records for disabled subdomains
-- Preserves essential records (jakekausler.com, NS, SOA)
+- Preserves essential records (example.com, NS, SOA)
 - Integrates with existing CLI workflow
 
 ## Notes for Implementation

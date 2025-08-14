@@ -1,0 +1,69 @@
+defaults:
+  enabled: true
+  ws: false
+  route: /
+  proxy_buffering: 'off'
+
+sites:
+  # Example site with proxy to application server
+  app.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:8080
+
+  # Example site with multiple upstreams and routes
+  api.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:3000
+      route: /api/v1/
+    - target: 192.168.1.100:3001
+      route: /api/v2/
+
+  # Example static site
+  www.example.com:
+    enabled: true
+    root: /var/www/example.com/html
+
+  # Example site with WebSocket support
+  realtime.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:8765
+      ws: true
+
+  # Example site with custom proxy settings
+  custom.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:9000
+    proxy_buffering: 'on'
+
+  # Example disabled site
+  maintenance.example.com:
+    enabled: false
+    upstreams:
+    - target: 192.168.1.100:8888
+
+  # Example site with static files and API proxy
+  hybrid.example.com:
+    enabled: true
+    root: /var/www/hybrid.example.com/html
+    upstreams:
+    - target: 192.168.1.100:4000
+      route: /api/
+
+  # Example gaming/real-time application
+  game.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:25565
+      ws: true
+
+  # Example development environment
+  dev.example.com:
+    enabled: true
+    upstreams:
+    - target: 192.168.1.100:3000
+    - target: 192.168.1.100:8080
+      route: /api/
